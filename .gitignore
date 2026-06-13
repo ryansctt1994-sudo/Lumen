@@ -18,8 +18,9 @@ audit_log.jsonl
 *.sqlite
 *.db
 logs/
-receipts/*.json
-receipts/*.sha256
+
+# E3 receipt artifacts are intentionally not ignored.
+# Commit receipts/demo_receipt.json and receipts/demo_receipt.sha256 when promoting evidence.
 
 # OS / editor
 .DS_Store
