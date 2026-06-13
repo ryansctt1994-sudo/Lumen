@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Build artifacts
+build/
+dist/
+*.whl
+
+# Runtime artifacts
+audit_log.jsonl
+*.sqlite
+*.db
+logs/
+receipts/*.json
+receipts/*.sha256
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
