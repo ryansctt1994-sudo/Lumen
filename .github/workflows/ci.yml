@@ -22,3 +22,7 @@ jobs:
         run: pytest tests -q
       - name: Demo
         run: python examples/demo_full_loop.py
+      - name: Generate E3 candidate package
+        run: python scripts/generate_e3_receipt.py
+      - name: Verify E3 candidate package
+        run: python scripts/verify_e3_package.py
