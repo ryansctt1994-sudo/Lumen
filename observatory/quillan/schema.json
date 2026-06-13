@@ -1,0 +1,21 @@
+{
+  "version": "0.1",
+  "nodes": [
+    {"type": "Receipt", "properties": ["id", "hash", "timestamp", "authority"]},
+    {"type": "Skill", "properties": ["id", "manifest_hash", "status", "evals"]},
+    {"type": "Claim", "properties": ["id", "proposal_hash", "verdict"]},
+    {"type": "Agent", "properties": ["id", "version"]},
+    {"type": "AtroposEnv", "properties": ["id", "name", "score"]}
+  ],
+  "edges": [
+    {"type": "DERIVES_FROM", "from": "Receipt", "to": "Claim"},
+    {"type": "VALIDATES", "from": "Receipt", "to": "Skill"},
+    {"type": "EVALUATED_BY", "from": "Skill", "to": "AtroposEnv"},
+    {"type": "PRODUCED_BY", "from": "Receipt", "to": "Agent"}
+  ],
+  "observability_rules": {
+    "default_layout": "force_directed",
+    "evidence_only": true,
+    "no_authority_claims": true
+  }
+}
