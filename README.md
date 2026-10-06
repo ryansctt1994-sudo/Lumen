@@ -1,5 +1,8 @@
 # Lumen
 
+> [!NOTE]
+> **Portfolio crosswalk — 2026-10-06:** This repository contains legacy/local `E3`/`E4` terminology. Do **not** map those labels to the current portfolio ladder by name alone. Portfolio-wide state remains **E2 ceiling / W0 / O0 / production prohibited / E4 not earned**. Repository-local evidence stays local to the artifact that earned it.
+
 **Lumen** is a small, runnable MVP for receipt-bound authority verification, replayable evidence, and governed AI execution.
 
 It is the practical core of the broader Weaver-Cathedral / ZOREL-717 master stack. The repository starts with a narrow, testable implementation instead of a large unverified scaffold.
