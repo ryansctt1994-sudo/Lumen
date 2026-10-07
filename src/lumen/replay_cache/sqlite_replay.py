@@ -50,23 +50,36 @@ class SQLiteReplayCache:
             "data": data,
             "prev_hash": prev_hash,
         }
-        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
 
     def insert(self, receipt_id: str, data: Dict[str, Any], prev_hash: Optional[str] = None) -> str:
         entry_hash = self.compute_entry_hash(receipt_id, data, prev_hash)
         with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            existing = conn.execute(
+                "SELECT entry_hash, data, prev_hash FROM replay_entries WHERE receipt_id = ?",
+                (receipt_id,),
+            ).fetchone()
+            if existing is not None:
+                stored_hash, stored_data, stored_prev = existing
+                if (
+                    stored_hash != entry_hash
+                    or json.loads(stored_data) != data
+                    or stored_prev != prev_hash
+                ):
+                    raise ValueError("conflicting receipt_id already stored")
+                return stored_hash
             conn.execute(
                 """
                 INSERT INTO replay_entries (receipt_id, entry_hash, timestamp, data, prev_hash)
                 VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(receipt_id) DO NOTHING
                 """,
                 (
                     receipt_id,
                     entry_hash,
                     datetime.now(timezone.utc).isoformat(),
-                    json.dumps(data, sort_keys=True),
+                    json.dumps(data, sort_keys=True, allow_nan=False),
                     prev_hash,
                 ),
             )

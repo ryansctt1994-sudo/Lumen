@@ -51,3 +51,21 @@ EVIDENCE_ONLY
 SIMULATED_HARDWARE
 NO_PRODUCTION_AUTHORITY
 ```
+
+## Maintenance candidate: 2026-10-07
+
+The local verifier now requires a literal boolean replay pass and a nonempty,
+well-formed matching replay tip. It checks receipt content integrity and binds
+the supplied claim to the receipted proposal payload. These hashes do not
+establish a trusted signer, independent replay, or operational authority.
+
+SQLite retries with identical receipt ID/content are idempotent. Reuse with
+changed content or predecessor is refused transactionally. Candidate package
+runs use fresh UUIDs and link to the verified previous cache tip, so repeated
+runs do not silently reuse stale records. Concurrent independent chain appends
+remain outside this candidate's guarantee.
+
+Validation: 23 local pytest cases pass (13 existing plus 10 new cases), including
+claim substitution, modified receipts, absent tips, conflicting concurrent ID
+writes, nonfinite payloads, and repeated package generation. The demo and package
+integrity verifier also pass locally. Portfolio promotion remains withheld.
