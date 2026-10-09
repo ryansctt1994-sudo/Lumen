@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0.0",
+  "default_policy": "disabled",
+  "authority": "NONE",
+  "selected_intake": [
+    {
+      "repository": "agency-agents6",
+      "scope": "bounded action authorization and safety envelope",
+      "status": "review_required"
+    }
+  ],
+  "donors": [
+    "AI-Research-SKILLs",
+    "awesome-agent-skills",
+    "skills",
+    "ai-agent-terraform",
+    "ai-ticket",
+    "FreeLattice",
+    "Gbrain-Reinforced",
+    "hermes-agent-self-evolution",
+    "owl",
+    "ruflo",
+    "SuperAGI",
+    "swarms",
+    "tinyclaw",
+    "strix",
+    "rosclaw",
+    "Cortex",
+    "NexusGate",
+    "Quillan-",
+    "Quillan-v4.2-repo"
+  ],
+  "required_fields_before_enablement": [
+    "upstream_repository",
+    "upstream_commit",
+    "license",
+    "copied_paths",
+    "local_delta",
+    "capability_list",
+    "prohibited_capabilities",
+    "positive_tests",
+    "negative_tests",
+    "artifact_hashes",
+    "receipt_ids",
+    "non_claims",
+    "authority_lease"
+  ],
+  "global_prohibitions": [
+    "wholesale_source_import",
+    "autonomous_authority",
+    "self_promotion",
+    "unapproved_external_skill_installation",
+    "unapproved_transport_or_service",
+    "physical_actuation",
+    "production_safety_claim"
+  ]
+}
