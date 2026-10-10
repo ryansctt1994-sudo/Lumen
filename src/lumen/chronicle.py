@@ -25,6 +25,7 @@ class Chronicle:
         self.lock = threading.Lock()
         self.last_hash: Optional[str] = None
         self.entry_count = 0
+        self._uncertain_persist = False
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._resume()
 
@@ -99,6 +100,8 @@ class Chronicle:
         if not isinstance(event_type, str) or not isinstance(data, dict) or not isinstance(metadata, (dict, type(None))):
             raise ValueError("invalid Chronicle append payload")
         with self.lock:
+            if self._uncertain_persist:
+                raise RuntimeError("prior Chronicle write outcome unknown; reopen and verify")
             if self.path.exists():
                 last, count = self._scan_history(self.path)
                 if (last, count) != (self.last_hash, self.entry_count):
@@ -114,10 +117,16 @@ class Chronicle:
             }
             entry["hash"] = self.compute_hash(entry)
             encoded = json.dumps(entry, sort_keys=True, allow_nan=False) + "\n"
-            with self.path.open("a", encoding="utf-8") as handle:
-                handle.write(encoded)
-                handle.flush()
-                os.fsync(handle.fileno())
+            try:
+                with self.path.open("a", encoding="utf-8") as handle:
+                    handle.write(encoded)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            except OSError:
+                # The append effect may be absent, partial or durable. No
+                # in-process retry can safely decide which; reopen and verify.
+                self._uncertain_persist = True
+                raise
             self.last_hash = entry["hash"]
             self.entry_count += 1
             return entry
