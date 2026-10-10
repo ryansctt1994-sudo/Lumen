@@ -67,8 +67,19 @@ class ChronicleResumeIntegrityTests(unittest.TestCase):
         with patch("lumen.chronicle.os.fsync", side_effect=OSError("injected durability unknown")):
             with self.assertRaises(OSError):
                 c.append("unknown", {"v": 3})
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             c.append("retry", {"v": 4})
+        self.assertEqual(c.entry_count, 2)
+
+    def test_fsync_unknown_stays_poisoned_even_after_disk_restoration(self):
+        c = Chronicle(self.path)
+        before = self.path.read_bytes()
+        with patch("lumen.chronicle.os.fsync", side_effect=OSError("uncertain")):
+            with self.assertRaises(OSError):
+                c.append("uncertain", {"v": 3})
+        self.path.write_bytes(before)
+        with self.assertRaises(RuntimeError):
+            c.append("must-not-retry", {"v": 4})
         self.assertEqual(c.entry_count, 2)
 
     def test_truncated_record_denied(self):
