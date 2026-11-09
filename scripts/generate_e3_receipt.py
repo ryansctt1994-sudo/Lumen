@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
@@ -77,11 +78,15 @@ def generate_e3_package() -> Dict[str, Any]:
 
     demo_output = run_demo(log_path)
     cache = SQLiteReplayCache(cache_path)
-    cache_hash = cache.insert("demo_receipt", demo_output)
+    receipt_id = f"demo_e3_{uuid.uuid4()}"
+    prior_report = cache.verify_chain()
+    if prior_report["valid"] is not True:
+        raise ValueError("existing replay cache failed verification")
+    cache_hash = cache.insert(receipt_id, demo_output, prior_report["last_hash"])
     cache_report = cache.verify_chain()
 
     package = {
-        "receipt_id": f"demo_e3_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
+        "receipt_id": receipt_id,
         "commit_hash": git_head(),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "evidence_level": "E3_CANDIDATE",
