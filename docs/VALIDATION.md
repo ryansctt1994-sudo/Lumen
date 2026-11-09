@@ -121,3 +121,24 @@ evidence cache, **not** an efficient production ledger design.
   execution**, not production approval.
 
 **Portfolio boundary:** E2 / W0 / O0 WITHHELD / PRODUCTION PROHIBITED.
+
+
+## Integration-only gate: receipt cache + Chronicle resume + R4
+
+The unmerged repair candidates PR #4 and PR #5 are now composed on main's
+R4 verifier baseline in an explicit review-only branch. The source sets were
+proven disjoint and unchanged on main since their shared base before the tree
+was assembled. This does not imply the PRs were merged into main.
+
+`tests/test_integrated_evidence_boundaries.py` exercises Chronicle persistence,
+fresh replay derivation, claim-bound Receipt creation, evidence-only Weaver
+verification and SQLite replay storage in one path. It also demonstrates two
+adverse conditions: corrupted Chronicle history cannot be resumed, and a
+self-consistent **caller-supplied replay report can still be accepted without
+independently checking its provenance**. The latter is a known trust-boundary
+limit; the verifier has not gained a signed witness or binding to an external
+authenticated checkpoint.
+
+No E3/E4 promotion, operational authorization, or independent witnessing is
+claimed. This is E2 / W0 / O0, production prohibited; do not merge the
+integration-only PR without explicit review of underlying candidates.
