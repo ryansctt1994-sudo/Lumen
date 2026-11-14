@@ -142,3 +142,17 @@ authenticated checkpoint.
 No E3/E4 promotion, operational authorization, or independent witnessing is
 claimed. This is E2 / W0 / O0, production prohibited; do not merge the
 integration-only PR without explicit review of underlying candidates.
+# 2026-11-14 connection-lifecycle amendment
+
+The four frozen controls in `tests/test_replay_connection_lifecycle.py` failed on
+the existing integrated source `7deeca5491153ffcbb6f2c815311fb5eefd7ce35` and passed
+after explicitly closing each replay-cache connection after its transaction.
+The unchanged prior suite and these controls passed together: 49 local checks.
+This is owner-local regression evidence. A connection context commits or rolls
+back; it does not itself close the connection. Retaining connections had allowed
+a later WAL checkpoint to change database bytes after a local packet hashed them.
+The repair does not establish remote-effect atomicity, crash durability, protection
+against whole-store rollback, external custody, hardware enforcement or production
+authority. Earlier validation records below remain historical records of their
+original source pins. New hosted results must identify this amended source.
+
