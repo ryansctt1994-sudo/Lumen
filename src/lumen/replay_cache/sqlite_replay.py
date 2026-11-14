@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -27,7 +28,7 @@ class SQLiteReplayCache:
         return conn
 
     def _init_db(self) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS replay_entries (
@@ -93,7 +94,7 @@ class SQLiteReplayCache:
 
     def insert(self, receipt_id: str, data: Dict[str, Any], prev_hash: Optional[str] = None) -> str:
         entry_hash = self.compute_entry_hash(receipt_id, data, prev_hash)
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             # SQLite serializes competing writers before predecessor inspection.
             # The check and the append must happen within this same transaction.
             conn.execute("BEGIN IMMEDIATE")
@@ -140,7 +141,7 @@ class SQLiteReplayCache:
         return entry_hash
 
     def get_replay_report(self, receipt_id: str) -> Optional[Dict[str, Any]]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             row = conn.execute(
                 "SELECT receipt_id, entry_hash, timestamp, data, prev_hash FROM replay_entries WHERE receipt_id = ?",
                 (receipt_id,),
@@ -157,7 +158,7 @@ class SQLiteReplayCache:
         }
 
     def verify_chain(self) -> Dict[str, Any]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             rows = conn.execute(
                 "SELECT receipt_id, entry_hash, data, prev_hash "
                 "FROM replay_entries ORDER BY id"

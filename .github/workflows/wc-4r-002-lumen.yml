@@ -23,12 +23,12 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install test runner
-        run: python -m pip install pytest
+        run: python -m pip install 'pytest==9.2.0'
       - name: Reproduce both baseline defects and test fixed source
         shell: bash
         env:
           BASE: 4a3240c4f47ca0e5cd9fc7423298c3b3c00db3bf
-          FIX: 7deeca5491153ffcbb6f2c815311fb5eefd7ce35
+          FIX: 44fc71ebc946b7353359c7b3670fa21b7dc02283
         run: |
           set -euo pipefail
           export PYTHONDONTWRITEBYTECODE=1
@@ -98,7 +98,6 @@ jobs:
           manifest replay/fix replay/fix-after.sha256
           cmp replay/base-before.sha256 replay/base-after.sha256
           cmp replay/fix-before.sha256 replay/fix-after.sha256
-          sha256sum replay/*.log replay/*.txt replay/*-before.sha256 replay/*-after.sha256 > replay/file-hashes.sha256
           {
             echo "chronicle_fixed_exit=0"
             echo "receipt_fixed_exit=0"
@@ -106,6 +105,10 @@ jobs:
             echo "full_suite_fixed_exit=0"
             echo "source_manifests_unchanged=true"
           } >> replay/metadata.txt
+          # Metadata must be final before it is committed by the manifest.
+          sha256sum replay/*.log replay/*.txt replay/*-before.sha256 replay/*-after.sha256 > replay/file-hashes.sha256
+          [[ "$(wc -l < replay/file-hashes.sha256)" -eq 11 ]]
+          sha256sum -c replay/file-hashes.sha256
 
           echo "### WC-4R-002: Lumen exact-commit donor replay" >> "$GITHUB_STEP_SUMMARY"
           echo "- BASE $BASE: Chronicle tamper-resume and receipt substitution fail as expected." >> "$GITHUB_STEP_SUMMARY"
@@ -122,5 +125,5 @@ jobs:
             replay/*.log
             replay/*.txt
             replay/*.sha256
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
