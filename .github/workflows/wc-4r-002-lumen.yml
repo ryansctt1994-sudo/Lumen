@@ -3,7 +3,7 @@ name: WC-4R-002 Lumen exact-commit replay
 on:
   pull_request:
     branches:
-      - integration/receipt-chronicle-r4-20261108
+      - main
     paths:
       - .github/workflows/wc-4r-002-lumen.yml
   workflow_dispatch:
