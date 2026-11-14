@@ -1,0 +1,129 @@
+name: WC-4R-002 Lumen exact-commit replay
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/wc-4r-002-lumen.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-pinned-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test runner
+        run: python -m pip install 'pytest==9.2.0'
+      - name: Reproduce both baseline defects and test fixed source
+        shell: bash
+        env:
+          BASE: 4a3240c4f47ca0e5cd9fc7423298c3b3c00db3bf
+          FIX: 44fc71ebc946b7353359c7b3670fa21b7dc02283
+        run: |
+          set -euo pipefail
+          export PYTHONDONTWRITEBYTECODE=1
+          export PYTHONHASHSEED=0
+          mkdir -p replay/base replay/fix
+          git cat-file -e "$BASE^{commit}"
+          git cat-file -e "$FIX^{commit}"
+          git archive "$BASE" | tar -x -C replay/base
+          git archive "$FIX" | tar -x -C replay/fix
+
+          # Identical new regression files are deliberately overlaid on the OLD code.
+          # Never represent the overlaid baseline directory as the original git tree.
+          for f in tests/test_chronicle_resume_integrity.py tests/test_receipt_binding.py tests/test_replay_single_writer.py; do
+            git show "$FIX:$f" > "replay/base/$f"
+            cmp "replay/base/$f" "replay/fix/$f"
+          done
+
+          {
+            echo "schema=wc-4r-002/source-pin-v0.1"
+            echo "base_code_sha=$BASE"
+            echo "base_code_tree=$(git rev-parse "$BASE^{tree}")"
+            echo "fixed_code_sha=$FIX"
+            echo "fixed_code_tree=$(git rev-parse "$FIX^{tree}")"
+            echo "python=$(python --version)"
+            echo "pytest=$(python -m pytest --version)"
+            echo "baseline_test_overlay=three test files copied byte-identically from fixed commit"
+            for f in tests/test_chronicle_resume_integrity.py tests/test_receipt_binding.py tests/test_replay_single_writer.py; do
+              echo "$f=$(git rev-parse "$FIX:$f")"
+            done
+          } > replay/metadata.txt
+
+          manifest() {
+            (cd "$1" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) > "$2"
+          }
+          manifest replay/base replay/base-before.sha256
+          manifest replay/fix replay/fix-before.sha256
+
+          # Negative controls are expected to FAIL on the published base.
+          set +e
+          (cd replay/base && python -m pytest -p no:cacheprovider -q -rA tests/test_chronicle_resume_integrity.py) > replay/chronicle-base.log 2>&1
+          chronicle_base_rc=$?
+          (cd replay/base && python -m pytest -p no:cacheprovider -q -rA tests/test_receipt_binding.py tests/test_replay_single_writer.py) > replay/receipt-base.log 2>&1
+          receipt_base_rc=$?
+          set -e
+
+          echo "chronicle_base_exit=$chronicle_base_rc" >> replay/metadata.txt
+          echo "receipt_base_exit=$receipt_base_rc" >> replay/metadata.txt
+
+          if [[ "$chronicle_base_rc" -eq 0 ]] || ! grep -q 'FAILED.*test_prior_entry_tamper_denied_at_construction' replay/chronicle-base.log; then
+            echo "::error::Chronicle base did not reproduce its targeted fail-closed defect"
+            cat replay/chronicle-base.log
+            exit 1
+          fi
+          if [[ "$receipt_base_rc" -eq 0 ]] || ! grep -q 'FAILED.*test_claim_substitution_is_refused' replay/receipt-base.log; then
+            echo "::error::Receipt base did not reproduce its targeted binding defect"
+            cat replay/receipt-base.log
+            exit 1
+          fi
+
+          # Same regression files, exact pinned integrated code.
+          (cd replay/fix && python -m pytest -p no:cacheprovider -q -rA tests/test_chronicle_resume_integrity.py) > replay/chronicle-fixed.log 2>&1
+          (cd replay/fix && python -m pytest -p no:cacheprovider -q -rA tests/test_receipt_binding.py tests/test_replay_single_writer.py) > replay/receipt-fixed.log 2>&1
+          (cd replay/fix && python -m pytest -p no:cacheprovider -q -rA tests/test_integrated_evidence_boundaries.py) > replay/cross-component-fixed.log 2>&1
+          (cd replay/fix && python -m pytest -p no:cacheprovider -q -rf tests) > replay/full-suite-fixed.log 2>&1
+
+          manifest replay/base replay/base-after.sha256
+          manifest replay/fix replay/fix-after.sha256
+          cmp replay/base-before.sha256 replay/base-after.sha256
+          cmp replay/fix-before.sha256 replay/fix-after.sha256
+          {
+            echo "chronicle_fixed_exit=0"
+            echo "receipt_fixed_exit=0"
+            echo "cross_component_fixed_exit=0"
+            echo "full_suite_fixed_exit=0"
+            echo "source_manifests_unchanged=true"
+          } >> replay/metadata.txt
+          # Metadata must be final before it is committed by the manifest.
+          sha256sum replay/*.log replay/*.txt replay/*-before.sha256 replay/*-after.sha256 > replay/file-hashes.sha256
+          [[ "$(wc -l < replay/file-hashes.sha256)" -eq 11 ]]
+          sha256sum -c replay/file-hashes.sha256
+
+          echo "### WC-4R-002: Lumen exact-commit donor replay" >> "$GITHUB_STEP_SUMMARY"
+          echo "- BASE $BASE: Chronicle tamper-resume and receipt substitution fail as expected." >> "$GITHUB_STEP_SUMMARY"
+          echo "- FIX $FIX: Chronicle, receipt, SQLite writer and cross-component regressions PASS." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Full suite: $(tail -n 1 replay/full-suite-fixed.log)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Inputs pinned; source files unchanged before and after execution." >> "$GITHUB_STEP_SUMMARY"
+          echo "- These results are OWNER_CI research evidence, not independent verification or operational authority." >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain run logs and source manifests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wc-4r-002-lumen-replay
+          path: |
+            replay/*.log
+            replay/*.txt
+            replay/*.sha256
+          if-no-files-found: error
+          retention-days: 30
